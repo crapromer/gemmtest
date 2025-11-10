@@ -4,9 +4,10 @@
 #include <chrono>
 #include <stddef.h>
 
-// ======================================================
-// x86/x64 AVX 实现
-// ======================================================
+//
+// =============================================================
+// x86/x64 版本：AVX / AVX2 / FMA
+// =============================================================
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include <immintrin.h>
 
@@ -16,13 +17,25 @@ float vec_dot(const float *a, const float *b, size_t n)
     const size_t step = 8;
     __m256 vsum = _mm256_setzero_ps();
 
+#if defined(__FMA__) || defined(__AVX2__)
+    // 如果编译器支持 FMA/AVX2，则使用 fused multiply-add
+    for (; i + step <= n; i += step)
+    {
+        __m256 va = _mm256_loadu_ps(a + i);
+        __m256 vb = _mm256_loadu_ps(b + i);
+        vsum = _mm256_fmadd_ps(va, vb, vsum); // vsum += va * vb
+    }
+#else
+    // 否则使用普通 AVX 乘加
     for (; i + step <= n; i += step)
     {
         __m256 va = _mm256_loadu_ps(a + i);
         __m256 vb = _mm256_loadu_ps(b + i);
         vsum = _mm256_add_ps(vsum, _mm256_mul_ps(va, vb));
     }
+#endif
 
+    // 水平求和
     __m128 low = _mm256_castps256_ps128(vsum);
     __m128 high = _mm256_extractf128_ps(vsum, 1);
     __m128 sum128 = _mm_add_ps(low, high);
@@ -35,11 +48,19 @@ float vec_dot(const float *a, const float *b, size_t n)
     return result;
 }
 
-const char *arch_name() { return "AVX (x86/x64)"; }
+const char *arch_name()
+{
+#if defined(__FMA__) || defined(__AVX2__)
+    return "AVX2 + FMA (x86/x64)";
+#else
+    return "AVX (x86/x64)";
+#endif
+}
 
-// ======================================================
-// ARM/ARM64 NEON 实现
-// ======================================================
+//
+// =============================================================
+// ARM/ARM64 版本：NEON
+// =============================================================
 #elif defined(__ARM_NEON) || defined(__ARM_NEON__)
 #include <arm_neon.h>
 
@@ -66,9 +87,10 @@ float vec_dot(const float *a, const float *b, size_t n)
 
 const char *arch_name() { return "NEON (ARM/ARM64)"; }
 
-// ======================================================
+//
+// =============================================================
 // 默认标量版本（无 SIMD）
-// ======================================================
+// =============================================================
 #else
 float vec_dot(const float *a, const float *b, size_t n)
 {
@@ -80,9 +102,10 @@ float vec_dot(const float *a, const float *b, size_t n)
 const char *arch_name() { return "Scalar (No SIMD)"; }
 #endif
 
-// ======================================================
-// 主函数（平台无关）
-// ======================================================
+//
+// =============================================================
+// 通用 main 函数
+// =============================================================
 int main()
 {
     const size_t N = 1000003;
