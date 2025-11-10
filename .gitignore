@@ -39,3 +39,35 @@
 
 # debug information files
 *.dwo
+
+# Xmake cache
+.xmake/
+build/
+python/infinicore/lib/*.so
+
+# MacOS Cache
+.DS_Store
+
+# Vscode
+.vscode/
+
+# Python
+__pycache__/
+*.egg-info/
+
+# Log
+*.log
+
+# Cache
+cache/
+
+# JSON
+*.json
+
+#GGUF
+*.gguf
+
+# Compressed
+*.gz
+*.zip
+*.tar
